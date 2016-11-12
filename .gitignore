@@ -5,3 +5,4 @@ __pycache__/
 *.npy
 ETL2/
 ETL*.zip
+dcgan/models/*.h5

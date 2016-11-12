@@ -5,7 +5,7 @@ from keras.layers.core import Dense, Flatten, Activation
 from keras.layers.convolutional import Convolution2D, UpSampling2D
 from keras.layers.pooling import MaxPooling2D
 from keras.layers.normalization import BatchNormalization
-from keras.layers.advanced_activations import ELU
+from keras.layers.advanced_activations import ELU, LeakyReLU
 from keras.optimizers import Adam, SGD
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import EarlyStopping, Callback
@@ -25,35 +25,35 @@ def create_random_features(num):
     return np.random.uniform(low=-1, high=1, 
                             size=[num, 4, 4, 8])
 
-class PercentEarlyStopping(Callback):
-    def __init__(self, val_data, percentage=0.95):
-        super(PercentEarlyStopping, self).__init__()
-        self.val_data = val_data
+class GeneratorEarlyStopping(Callback):
+    def __init__(self, nb_vals, percentage=0.95):
+        super(GeneratorEarlyStopping, self).__init__()
+        self.nb_vals = nb_vals
         self.percentage = percentage
-        self.total = len(val_data[0])
 
     def on_epoch_end(self, epoch, logs={}):
-        pred = self.model.predict(self.val_data[0])
+        features = create_random_features(self.nb_vals)
+        pred = self.model.predict(features)
         pred = pred > 0.5
 
-        wrong = np.sum(np.abs((pred-self.val_data[1])))
+        correct = np.sum(pred)
         
-        if wrong < self.total*(1-self.percentage):
+        if correct > self.nb_vals*(1-self.percentage):
             self.model.stop_training = True
 
 discriminator = Sequential([
     Convolution2D(32, 3, 3, border_mode='same', input_shape=[32, 32, 1]),
-    ELU(),
+    LeakyReLU(),
     MaxPooling2D(), # 16x16
     Convolution2D(64, 3, 3, border_mode='same'),
-    ELU(),
+    LeakyReLU(),
     MaxPooling2D(), # 8x8
     Convolution2D(64, 3, 3, border_mode='same'),
-    ELU(),
+    LeakyReLU(),
     MaxPooling2D(), # 4x4
     Flatten(),
     Dense(512),
-    ELU(),
+    LeakyReLU(),
     Dense(1, activation='sigmoid')
 ], name="discriminator")
 
@@ -103,7 +103,7 @@ def evaluate():
     print("fake:", faked, "/", generate_batch_num)
     print("")
 
-for i in range(1000):
+for i in range(100000):
 
     # tran discriminator
     print("discriminator:",i)
@@ -123,11 +123,10 @@ for i in range(1000):
 
     discriminator.fit_generator(imageGen.flow(X_train, y_train),
                                 samples_per_epoch=len(X_train),
-                                nb_epoch=100,
+                                nb_epoch=300,
                                 validation_data=(X_val, y_val),
                                 callbacks=[
-                                    EarlyStopping(patience=2, monitor='val_loss')
-                                    # PercentEarlyStopping([X_val, y_val])
+                                    EarlyStopping(patience=3, monitor='val_loss')
                                 ])
     
     evaluate()
@@ -138,14 +137,11 @@ for i in range(1000):
     X_train = create_random_features(generate_batch_num)
     y_train = np.ones(len(X_train))
 
-    X_val = create_random_features(int(generate_batch_num*0.2))
-    y_val = np.ones(len(X_val))
-
     dcgan.fit(X_train, y_train, 
               nb_epoch=30, 
               batch_size=128,
               callbacks=[
-                  PercentEarlyStopping((X_val, y_val))
+                  GeneratorEarlyStopping(generate_batch_num//5)
               ])
 
     evaluate()
