@@ -1,0 +1,7 @@
+__pycache__/
+
+.vscode/
+
+*.npy
+ETL2/
+ETL*.zip
