@@ -37,3 +37,7 @@ print('Freezed in "connected":', np.array_equal(w0, w1))
 modelB.fit(X2, X1)
 w2 = np.copy(modelB.layers[0].get_weights()[0])
 print('Freezed in "modelB":', np.array_equal(w1, w2))
+
+connected.fit(X1, X1)
+w3 = np.copy(modelB.layers[0].get_weights()[0])
+print('Freezed in "connected":', np.array_equal(w2, w3))

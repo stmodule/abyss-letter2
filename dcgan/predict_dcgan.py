@@ -29,6 +29,8 @@ with tf.device("/cpu:0"):
     features = create_random_features(rows*cols)
     images = dcgan.layers[0].predict(features)
 
+    # print(np.max(images[0] - images[1]))
+
     plt.gray()
     fig = plt.figure()
     for i in range(rows):

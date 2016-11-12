@@ -14,7 +14,7 @@ for png in pngs:
     image = Image.open(png)
     image = ImageOps.grayscale(image)
 
-    array = np.array(image)/255
+    array = (np.array(image)/255 *2) -1
 
     images = np.append(images, array)
 
