@@ -9,6 +9,11 @@ import sys
 with tf.device("/cpu:0"):
     from keras.models import load_model
 
+    def create_random_features(num):
+        return np.random.uniform(low=-1, high=1, 
+                            size=[num, 4, 4, 8])
+
+
     files_dir = os.path.dirname(__file__)
     npy_path = os.path.join(files_dir, "./dcgan_train_data.npy")
     if len(sys.argv) > 1:
@@ -21,9 +26,8 @@ with tf.device("/cpu:0"):
     rows = 6
     cols = 8
 
-    random_features = np.random.uniform(low=-1, high=1, 
-                                size=[rows*cols, 4, 4, 8])
-    images = dcgan.layers[0].predict(random_features)
+    features = create_random_features(rows*cols)
+    images = dcgan.layers[0].predict(features)
 
     plt.gray()
     fig = plt.figure()

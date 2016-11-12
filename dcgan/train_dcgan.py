@@ -26,7 +26,7 @@ def create_random_features(num):
                             size=[num, 4, 4, 8])
 
 class GeneratorEarlyStopping(Callback):
-    def __init__(self, nb_vals, percentage=0.95):
+    def __init__(self, nb_vals, percentage=0.97):
         super(GeneratorEarlyStopping, self).__init__()
         self.nb_vals = nb_vals
         self.percentage = percentage
@@ -37,8 +37,7 @@ class GeneratorEarlyStopping(Callback):
         pred = pred > 0.5
 
         correct = np.sum(pred)
-        
-        if correct > self.nb_vals*(1-self.percentage):
+        if correct > self.nb_vals*self.percentage:
             self.model.stop_training = True
 
 discriminator = Sequential([
@@ -57,7 +56,7 @@ discriminator = Sequential([
     Dense(1, activation='sigmoid')
 ], name="discriminator")
 
-# [4, 4, 8] -1 to 1 elems
+# input shape=[4, 4, 8] range=[-1, 1]
 generator = Sequential([
     Convolution2D(32, 3, 3, border_mode='same', input_shape=[4, 4, 8]),
     BatchNormalization(),
@@ -133,7 +132,7 @@ for i in range(100000):
 
     # train generator
     print("generator:",i)
-    generate_batch_num = 30000
+    generate_batch_num = 10000
     X_train = create_random_features(generate_batch_num)
     y_train = np.ones(len(X_train))
 
