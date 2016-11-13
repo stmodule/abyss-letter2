@@ -14,7 +14,6 @@ import os, math, sys
 
 files_dir = os.path.dirname(__file__)
 npy_path = os.path.join(files_dir, "./dcgan_train_data.npy")
-model_path = os.path.join(files_dir, "./dcgan_model.h5")
 
 def set_trainable(model, trainable):
     model.trainable = trainable
@@ -25,10 +24,11 @@ def create_random_features(num):
     return np.random.uniform(low=-1, high=1, 
                             size=[num, 4, 4, 8])
 
+# define models
 
 # 32x32 [-1,1] image
 discriminator = Sequential([
-    Convolution2D(32, 3, 3, border_mode='same', subsample=(2, 2), input_shape=[32, 32, 1]),
+    Convolution2D(32, 5, 5, border_mode='same', subsample=(2, 2), input_shape=[32, 32, 1]),
     LeakyReLU(), # [16, 16, 32]
     Convolution2D(64, 3, 3, border_mode='same', subsample=(2, 2)),
     LeakyReLU(), # [8, 8, 64]
@@ -44,21 +44,24 @@ discriminator = Sequential([
 generator = Sequential([
     Convolution2D(32, 3, 3, border_mode='same', input_shape=[4, 4, 8]),
     BatchNormalization(),
-    Activation('relu'),
+    ELU(),
     UpSampling2D(), # 8x8
     Convolution2D(64, 3, 3, border_mode='same'),
     BatchNormalization(),
-    Activation('relu'),
+    ELU(),
     UpSampling2D(), #16x16
     Convolution2D(128, 3, 3, border_mode='same'),
     BatchNormalization(),
-    Activation('relu'),
+    ELU(),
     UpSampling2D(), # 32x32
-    Convolution2D(1, 3, 3, border_mode='same', activation='tanh')
+    Convolution2D(1, 5, 5, border_mode='same', activation='tanh')
 ], name="generator")
 
+# setup models
+
 print("setup discriminator")
-opt_d = Adam(lr=0.0001, beta_1=0.5)
+set_trainable(discriminator, True)
+opt_d = Adam(lr=0.000005, beta_1=0.1)
 discriminator.compile(optimizer=opt_d, 
                       loss='binary_crossentropy', 
                       metrics=['accuracy'])
@@ -66,13 +69,17 @@ discriminator.compile(optimizer=opt_d,
 print("setup dcgan")
 set_trainable(discriminator, False)
 dcgan = Sequential([generator, discriminator])
-opt_g = Adam(lr=0.001, beta_1=0.5)
+opt_g = Adam(lr=0.0002, beta_1=0.5)
 dcgan.compile(optimizer=opt_g, 
               loss='binary_crossentropy', 
               metrics=['accuracy'])
 
 
-abyss_letters = np.load(npy_path)
+
+
+# training
+
+X_train = np.load(npy_path)
 
 def evaluate(generate_batch_num = 1000):
     random_features = create_random_features(generate_batch_num)
@@ -80,45 +87,54 @@ def evaluate(generate_batch_num = 1000):
     faked = np.sum(pred>0.5)
     return faked
 
-
-batch_size = 128
+batch_size = 100
 wait = 0
-for epoch in range(sys.maxsize):
+faked_curve = np.array([])
+for epoch in range(1, sys.maxsize):
+
+    print("epoch: {0}".format(epoch))
     
-    generated = generator.predict(create_random_features(len(abyss_letters)))
-
-    X_train = np.append(abyss_letters, generated, axis=0)
-    y_train = np.append(np.ones(len(abyss_letters)), np.zeros(len(generated)))
-    perm = np.random.permutation(len(X_train))
-    X_train = X_train[perm]
-    y_train = y_train[perm]
-
+    np.random.shuffle(X_train)
     rnd = create_random_features(len(X_train))
 
+    val_interval = 50
+    rnd_val = create_random_features(1000)
+    y_rnd_val = [0]*len(rnd_val)
+
+    # train on batch
     for i in range(math.ceil(len(X_train)/batch_size)):
         print("batch:", i, end='\r')
         X_batch = X_train[i*batch_size:(i+1)*batch_size]
-        y_batch = y_train[i*batch_size:(i+1)*batch_size]
         rnd_batch = rnd[i*batch_size:(i+1)*batch_size]
 
-        loss_d, acc_d = discriminator.train_on_batch(X_batch, y_batch)
+        generated = generator.predict(rnd_batch)
+        y_batch = [0]*len(X_batch) + [1]*len(generated)
+        X_batch = np.append(X_batch, generated, axis=0)
+        _, ad = discriminator.train_on_batch(X_batch, y_batch)
 
-        loss_g, acc_g = dcgan.train_on_batch(rnd_batch, np.ones(len(rnd_batch)))
+        if i%val_interval == 0:
+            print("")
+            generated = generator.predict(rnd_val)
+            loss_d, acc_d = discriminator.evaluate(generated, [1]*len(generated))
+
+        _, ag = dcgan.train_on_batch(rnd_batch, [0]*len(rnd_batch))
+
+        if i%val_interval == 0:
+            loss_g, acc_g = dcgan.evaluate(rnd_val, y_rnd_val)
+            print("")
+            print("dis: loss: {0:.5f} acc: {1:.3f}".format(loss_d, acc_d))
+            print("gen: loss: {0:.5f} acc: {1:.3f}".format(loss_g, acc_g))
     
+    # output
     test_num = 1000
-    faked = evaluate(1000)
-    print("epoch: {0}                    ".format(epoch))
-    print("loss_d: {0:e} acc_d {1:.3f}".format(loss_d, acc_d))
-    print("loss_g: {0:e} acc_g {1:.3f}".format(loss_g, acc_g))
-    print("faked: {0}/{1}".format(faked, test_num))
+    rnd_test = create_random_features(test_num)
+    _, faked = dcgan.evaluate(rnd_test, [0]*test_num)
+    print("")
+    print("epoch end:", ad, ag)
+    print("faked: {0}".format(faked))
 
-    if acc_d==0 or faked==0:
-        wait += 1
-        if wait>100:
-            print("waits reach 100")
-            exit(0)
-    else:
-        wait = 0
+    np.append(faked_curve, faked)
+    np.save(os.path.join(files_dir, "./faked_curve"), faked_curve)
 
     # save model
     if epoch%50 == 0:
@@ -128,3 +144,11 @@ for epoch in range(sys.maxsize):
         model.save(os.path.join(files_dir, "./models/{0}.h5".format(epoch)))
         print("Save: {0}.h5".format(epoch))
     print("")
+
+    if acc_d==0 or faked==0:
+        wait += 1
+        if wait>100:
+            print("wait reach 100")
+            exit(0)
+    else:
+        wait = 0
