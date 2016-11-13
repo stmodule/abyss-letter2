@@ -32,10 +32,10 @@ discriminator = Sequential([
     LeakyReLU(), # [16, 16, 32]
     Convolution2D(64, 3, 3, border_mode='same', subsample=(2, 2)),
     LeakyReLU(), # [8, 8, 64]
-    Convolution2D(64, 3, 3, border_mode='same', subsample=(2, 2)),
+    Convolution2D(128, 3, 3, border_mode='same', subsample=(2, 2)),
     LeakyReLU(), # [4, 4, 64]
     Flatten(),
-    Dense(512),
+    Dense(1024),
     LeakyReLU(),
     Dense(1, activation='sigmoid')
 ], name="discriminator")
@@ -58,7 +58,7 @@ generator = Sequential([
 ], name="generator")
 
 print("setup discriminator")
-opt_d = Adam(lr=0.0001, beta_1=0.1)
+opt_d = Adam(lr=0.0001, beta_1=0.5)
 discriminator.compile(optimizer=opt_d, 
                       loss='binary_crossentropy', 
                       metrics=['accuracy'])
@@ -73,25 +73,16 @@ dcgan.compile(optimizer=opt_g,
 
 
 abyss_letters = np.load(npy_path)
-nb_al = len(abyss_letters)
-abyss_letters = np.concatenate([
-    abyss_letters, 
-    np.append(abyss_letters[:,1:,:,:], np.zeros([nb_al,1,32,1]), axis=1),
-    np.append(abyss_letters[:,:-1,:,:], np.zeros([nb_al,1,32,1]), axis=1),
-    np.append(abyss_letters[:,:,1:,:], np.zeros([nb_al,32,1,1]), axis=2),
-    np.append(abyss_letters[:,:,:-1,:], np.zeros([nb_al,32,1,1]), axis=2)
-], axis=0)
 
-def evaluate():
-    generate_batch_num = 1000
+def evaluate(generate_batch_num = 1000):
     random_features = create_random_features(generate_batch_num)
     pred = dcgan.predict(random_features)
     faked = np.sum(pred>0.5)
-    return "fake: {0}/{1}".format(faked,generate_batch_num)
+    return faked
 
 
-batch_size = 32
-
+batch_size = 128
+wait = 0
 for epoch in range(sys.maxsize):
     
     generated = generator.predict(create_random_features(len(abyss_letters)))
@@ -105,6 +96,7 @@ for epoch in range(sys.maxsize):
     rnd = create_random_features(len(X_train))
 
     for i in range(math.ceil(len(X_train)/batch_size)):
+        print("batch:", i, end='\r')
         X_batch = X_train[i*batch_size:(i+1)*batch_size]
         y_batch = y_train[i*batch_size:(i+1)*batch_size]
         rnd_batch = rnd[i*batch_size:(i+1)*batch_size]
@@ -113,15 +105,26 @@ for epoch in range(sys.maxsize):
 
         loss_g, acc_g = dcgan.train_on_batch(rnd_batch, np.ones(len(rnd_batch)))
     
-    ev = evaluate()
-    print("epoch:", epoch)
+    test_num = 1000
+    faked = evaluate(1000)
+    print("epoch: {0}                    ".format(epoch))
     print("loss_d: {0:e} acc_d {1:.3f}".format(loss_d, acc_d))
     print("loss_g: {0:e} acc_g {1:.3f}".format(loss_g, acc_g))
-    print(ev, "\n")
+    print("faked: {0}/{1}".format(faked, test_num))
+
+    if acc_d==0 or faked==0:
+        wait += 1
+        if wait>100:
+            print("waits reach 100")
+            exit(0)
+    else:
+        wait = 0
 
     # save model
-    if epoch%100 == 0:
+    if epoch%50 == 0:
         # avoiding bug
         # https://github.com/fchollet/keras/pull/4338
         model = Sequential([generator, discriminator])
         model.save(os.path.join(files_dir, "./models/{0}.h5".format(epoch)))
+        print("Save: {0}.h5".format(epoch))
+    print("")

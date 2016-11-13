@@ -43,9 +43,7 @@ def bits_to_image(bits):
     # float image
     data = np.packbits(bits).astype(np.float32).reshape([width, height])
     max = np.power(2, bpp)-1
-    data = data / max
-    # thresh
-    # data[data<0.5] = 0
+    data = (data / max *2)-1
     # resize to half x half
     data = (data[::2, ::2] + data[1::2, ::2] + data[::2, 1::2] + data[1::2, 1::2])/4
 

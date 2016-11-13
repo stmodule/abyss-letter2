@@ -12,10 +12,9 @@ npy_path = os.path.join(files_dir, "./dcgan_train_data.npy")
 images = np.load(npy_path)
 
 np.random.shuffle(images)
-print(images.shape)
 
 rows = 7
-cols = 7
+cols = 10
 plt.gray()
 fig = plt.figure()
 for i in range(rows):
