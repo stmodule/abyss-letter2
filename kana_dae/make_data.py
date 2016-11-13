@@ -5,7 +5,7 @@ import os
 import numpy as np
 
 files_dir = os.path.dirname(__file__)
-out_dir = os.path.join(files_dir, "./ae_train_data")
+out_dir = os.path.join(files_dir, "./dae_train_data")
 
 trains = np.array([], dtype=np.float32)
 tests = np.array([], dtype=np.float32)
@@ -16,7 +16,7 @@ for f in glob.glob(etls):
     images = np.load(f) # [-1, 30, 30]
 
     # padding, 32x32
-    images = np.lib.pad(images, ((0,0),(1,1),(1,1)), 'constant', constant_values=(-1, -1))
+    images = np.lib.pad(images, ((0,0),(1,1),(1,1)), 'constant', constant_values=(0, 0))
     
     np.random.shuffle(images)
     ten = images.shape[0]//10
