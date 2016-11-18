@@ -38,7 +38,6 @@ discriminator = Sequential([
     Dense(1, activation='sigmoid')
 ], name="discriminator")
 
-# input shape=[4, 4, 8] range=[-1, 1]
 generator = Sequential([
     Convolution2D(64, 3, 3, border_mode='same', input_shape=[4, 4, 4]),
     UpSampling2D(), # 8x8
@@ -74,12 +73,6 @@ dcgan.compile(optimizer=opt_g,
 
 X_train = np.load(npy_path)
 
-def evaluate(generate_batch_num = 1000):
-    random_features = create_random_features(generate_batch_num)
-    pred = dcgan.predict(random_features)
-    faked = np.sum(pred>0.5)
-    return faked
-
 batch_size = 200
 wait = 0
 test_num = 1000
@@ -106,7 +99,6 @@ for epoch in range(1, sys.maxsize):
         y = [0]*len(X_batch) + [1]*len(generated)
         loss_d, acc_d = discriminator.train_on_batch(X,y)
         
-
         met_curve = np.append(met_curve, [[loss_d, acc_d, loss_g, acc_g]], axis=0)
     
     # output
