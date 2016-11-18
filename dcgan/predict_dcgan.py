@@ -32,7 +32,6 @@ with tf.device("/cpu:0"):
     cols = 10
 
     features = create_random_features(rows*cols)
-    features[0] = np.zeros([4, 4, 4])
     images = dcgan.layers[0].predict(features)
 
     # print(np.max(images[0] - images[1]))
