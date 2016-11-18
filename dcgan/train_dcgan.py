@@ -22,7 +22,7 @@ def set_trainable(model, trainable):
 
 def create_random_features(num):
     return np.random.uniform(low=-1, high=1, 
-                            size=[num, 4, 4, 8])
+                            size=[num, 4, 4, 4])
 
 # define models
 discriminator = Sequential([
@@ -40,7 +40,7 @@ discriminator = Sequential([
 
 # input shape=[4, 4, 8] range=[-1, 1]
 generator = Sequential([
-    Convolution2D(64, 3, 3, border_mode='same', input_shape=[4, 4, 8]),
+    Convolution2D(64, 3, 3, border_mode='same', input_shape=[4, 4, 4]),
     UpSampling2D(), # 8x8
     Convolution2D(128, 3, 3, border_mode='same'),
     BatchNormalization(),
@@ -116,7 +116,7 @@ for epoch in range(1, sys.maxsize):
     print("g: loss: {0:.3e} acc: {1:.3f}".format(loss_g, acc_g))
     print("faked: {0}".format(faked))
 
-    faked_curve = np.append(faked_curve, [[val_loss, faked]])
+    faked_curve = np.append(faked_curve, [[val_loss, faked]], axis=0)
     np.save(os.path.join(files_dir, "./faked_curve"), faked_curve)
     np.save(os.path.join(files_dir, "./met_curve"), met_curve)
 

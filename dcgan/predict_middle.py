@@ -24,15 +24,28 @@ with tf.device("/cpu:0"):
     dcgan = load_model(model_path)
     dcgan.summary()
 
-    # for l in dcgan.layers[0].layers:
-    #     print(l)
-    #     print(l.get_weights())
+    rows = 6
+    cols = 7
 
-    rows = 7
-    cols = 10
+    features1 = create_random_features(rows)
+    features2 = create_random_features(rows)
+    
+    features = np.hstack([
+        features1, 
+        0.9 * features1 + 0.1 * features2,
+        0.8 * features1 + 0.2 * features2,
+        0.7 * features1 + 0.3 * features2,
+        0.6 * features1 + 0.4 * features2,
+        0.5 * features1 + 0.5 * features2,
+        0.4 * features1 + 0.6 * features2,
+        0.3 * features1 + 0.7 * features2,
+        0.2 * features1 + 0.8 * features2,
+        0.1 * features1 + 0.9 * features2,
+        features2, 
+    ])
+    cols = features.shape[1]//4
+    features = features.reshape([-1, 4, 4, 4])
 
-    features = create_random_features(rows*cols)
-    features[0] = np.zeros([4, 4, 4])
     images = dcgan.layers[0].predict(features)
 
     # print(np.max(images[0] - images[1]))
