@@ -10,6 +10,7 @@ with tf.device("/cpu:0"):
     from keras.models import load_model
 
     def create_random_features(num):
+        np.random.seed(123456)
         return np.random.uniform(low=-1, high=1, 
                             size=[num, 4, 4, 4])
 
